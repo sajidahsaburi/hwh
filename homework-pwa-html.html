@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#4F46E5">
+    <meta name="description" content="Student homework management app">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="icon-192.png">
+    <title>HomeworkHub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+        .animate-slide-up {
+            animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Icon components
+        const Plus = () => <i data-lucide="plus"></i>;
+        const Bell = () => <i data-lucide="bell"></i>;
+        const Calendar = () => <i data-lucide="calendar"></i>;
+        const BookOpen = () => <i data-lucide="book-open"></i>;
+        const Camera = () => <i data-lucide="camera"></i>;
+        const Check = () => <i data-lucide="check"></i>;
+        const Trash2 = () => <i data-lucide="trash-2"></i>;
+        const Clock = () => <i data-lucide="clock"></i>;
+        const X = () => <i data-lucide="x"></i>;
+        const RefreshCw = () => <i data-lucide="refresh-cw"></i>;
+        const Eye = () => <i data-lucide="eye"></i>;
+
+        const HomeworkTrackerApp = () => {
+            const [activeTab, setActiveTab] = useState('home');
+            const [tasks, setTasks] = useState(() => {
+                const saved = localStorage.getItem('homeworkTasks');
+                return saved ? JSON.parse(saved) : [
+                    {
+                        id: 1,
+                        subject: 'Mathematics',
+                        title: 'Chapter 5 Exercises',
+                        dueDate: '2026-01-10',
+                        completed: false,
+                        priority: 'high',
+                        proof: null
+                    },
+                    {
+                        id: 2,
+                        subject: 'English',
+                        title: 'Essay on Climate Change',
+                        dueDate: '2026-01-12',
+                        completed: false,
+                        priority: 'medium',
+                        proof: null
+                    },
+                    {
+                        id: 3,
+                        subject: 'Science',
+                        title: 'Lab Report',
+                        dueDate: '2026-01-08',
+                        completed: true,
+                        priority: 'high',
+                        proof: 'uploaded'
+                    }
+                ];
+            });
+
+            const [subjects, setSubjects] = useState(() => {
+                const saved = localStorage.getItem('homeworkSubjects');
+                return saved ? JSON.parse(saved) : ['Mathematics', 'English', 'Science', 'History', 'Art', 'Physical Education'];
+            });
+
+            const [showAddTask, setShowAddTask] = useState(false);
+            const [showAddSubject, setShowAddSubject] = useState(false);
+            const [showImageModal, setShowImageModal] = useState(false);
+            const [selectedImage, setSelectedImage] = useState(null);
+            const [newTask, setNewTask] = useState({
+                subject: '',
+                title: '',
+                dueDate: '',
+                priority: 'medium'
+            });
+            const [newSubject, setNewSubject] = useState('');
+
+            const subjectColors = {
+                'Mathematics': 'bg-blue-500',
+                'English': 'bg-purple-500',
+                'Science': 'bg-green-500',
+                'History': 'bg-yellow-500',
+                'Art': 'bg-pink-500',
+                'Physical Education': 'bg-orange-500'
+            };
+
+            const colorOptions = ['bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-yellow-500', 'bg-pink-500', 'bg-orange-500', 'bg-red-500', 'bg-teal-500', 'bg-indigo-500', 'bg-cyan-500'];
+
+            const getSubjectColor = (subject) => {
+                return subjectColors[subject] || colorOptions[subjects.indexOf(subject) % colorOptions.length];
+            };
+
+            useEffect(() => {
+                localStorage.setItem('homeworkTasks', JSON.stringify(tasks));
+            }, [tasks]);
+
+            useEffect(() => {
+                localStorage.setItem('homeworkSubjects', JSON.stringify(subjects));
+            }, [subjects]);
+
+            useEffect(() => {
+                lucide.createIcons();
+            });
+
+            const addSubject = () => {
+                if (newSubject && !subjects.includes(newSubject)) {
+                    setSubjects([...subjects, newSubject]);
+                    setNewSubject('');
+                    setShowAddSubject(false);
+                }
+            };
+
+            const deleteSubject = (subjectToDelete) => {
+                const hasActiveTasks = tasks.some(task => task.subject === subjectToDelete);
+                if (hasActiveTasks) {
+                    alert('Cannot delete subject with active tasks');
+                    return;
+                }
+                setSubjects(subjects.filter(s => s !== subjectToDelete));
+            };
+
+            const addTask = () => {
+                if (newTask.subject && newTask.title && newTask.dueDate) {
+                    setTasks([...tasks, {
+                        id: Date.now(),
+                        ...newTask,
+                        completed: false,
+                        proof: null
+                    }]);
+                    setNewTask({ subject: '', title: '', dueDate: '', priority: 'medium' });
+                    setShowAddTask(false);
+                }
+            };
+
+            const uploadProof = (taskId, event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        setTasks(tasks.map(task => 
+                            task.id === taskId 
+                                ? { ...task, proof: reader.result, completed: true }
+                                : task
+                        ));
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            const triggerFileUpload = (taskId) => {
+                document.getElementById(`file-upload-${taskId}`).click();
+            };
+
+            const viewImage = (imageUrl) => {
+                setSelectedImage(imageUrl);
+                setShowImageModal(true);
+            };
+
+            const replaceProof = (taskId) => {
+                triggerFileUpload(taskId);
+            };
+
+            const deleteProof = (taskId) => {
+                setTasks(tasks.map(task => 
+                    task.id === taskId 
+                        ? { ...task, proof: null, completed: false }
+                        : task
+                ));
+            };
+
+            const deleteTask = (taskId) => {
+                setTasks(tasks.filter(task => task.id !== taskId));
+            };
+
+            const getDaysUntil = (dueDate) => {
+                const today = new Date();
+                const due = new Date(dueDate);
+                const diffTime = due - today;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                return diffDays;
+            };
+
+            const getTaskStats = () => {
+                const total = tasks.length;
+                const completed = tasks.filter(t => t.completed).length;
+                const pending = total - completed;
+                const overdue = tasks.filter(t => !t.completed && getDaysUntil(t.dueDate) < 0).length;
+                return { total, completed, pending, overdue };
+            };
+
+            const stats = getTaskStats();
+
+            return (
+                <div className="max-w-md mx-auto bg-gray-50 min-h-screen pb-20">
+                    {/* Header */}
+                    <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-6 rounded-b-3xl shadow-lg">
+                        <div className="flex justify-between items-center mb-6">
+                            <h1 className="text-2xl font-bold">HomeworkHub</h1>
+                            <Bell />
+                        </div>
+                        
+                        <div className="grid grid-cols-4 gap-3">
+                            <div className="bg-white bg-opacity-20 rounded-xl p-3 text-center backdrop-blur-sm">
+                                <div className="text-2xl font-bold">{stats.total}</div>
+                                <div className="text-xs opacity-90">Total</div>
+                            </div>
+                            <div className="bg-white bg-opacity-20 rounded-xl p-3 text-center backdrop-blur-sm">
+                                <div className="text-2xl font-bold">{stats.pending}</div>
+                                <div className="text-xs opacity-90">Pending</div>
+                            </div>
+                            <div className="bg-white bg-opacity-20 rounded-xl p-3 text-center backdrop-blur-sm">
+                                <div className="text-2xl font-bold">{stats.completed}</div>
+                                <div className="text-xs opacity-90">Done</div>
+                            </div>
+                            <div className="bg-white bg-opacity-20 rounded-xl p-3 text-center backdrop-blur-sm">
+                                <div className="text-2xl font-bold">{stats.overdue}</div>
+                                <div className="text-xs opacity-90">Overdue</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Main Content */}
+                    <div className="p-4">
+                        {activeTab === 'home' && (
+                            <>
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="text-xl font-semibold text-gray-800">My Tasks</h2>
+                                    <button 
+                                        onClick={() => setShowAddTask(true)}
+                                        className="bg-indigo-600 text-white p-3 rounded-full shadow-lg hover:bg-indigo-700 transition"
+                                    >
+                                        <Plus />
+                                    </button>
+                                </div>
+
+                                {/* Task List */}
+                                <div className="space-y-3">
+                                    {tasks.map(task => {
+                                        const daysUntil = getDaysUntil(task.dueDate);
+                                        const isOverdue = daysUntil < 0 && !task.completed;
+                                        const isDueSoon = daysUntil <= 2 && daysUntil >= 0 && !task.completed;
+
+                                        return (
+                                            <div 
+                                                key={task.id}
+                                                className={`bg-white rounded-2xl p-4 shadow-md border-l-4 ${
+                                                    task.completed ? 'opacity-60 border-green-500' : 
+                                                    isOverdue ? 'border-red-500' :
+                                                    isDueSoon ? 'border-yellow-500' :
+                                                    'border-indigo-500'
+                                                }`}
+                                            >
+                                                <div className="flex items-start justify-between mb-2">
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className={`${getSubjectColor(task.subject)} text-white text-xs px-2 py-1 rounded-full`}>
+                                                                {task.subject}
+                                                            </span>
+                                                            {task.completed && (
+                                                                <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                                                                    <Check />
+                                                                    Complete
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <h3 className={`font-semibold text-gray-800 ${task.completed ? 'line-through' : ''}`}>
+                                                            {task.title}
+                                                        </h3>
+                                                    </div>
+                                                    <button 
+                                                        onClick={() => deleteTask(task.id)}
+                                                        className="text-gray-400 hover:text-red-500"
+                                                    >
+                                                        <Trash2 />
+                                                    </button>
+                                                </div>
+
+                                                <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
+                                                    <div className="flex items-center gap-1">
+                                                        <Calendar />
+                                                        {task.dueDate}
+                                                    </div>
+                                                    <div className={`flex items-center gap-1 ${
+                                                        isOverdue ? 'text-red-600 font-semibold' :
+                                                        isDueSoon ? 'text-yellow-600 font-semibold' :
+                                                        'text-gray-600'
+                                                    }`}>
+                                                        <Clock />
+                                                        {isOverdue ? `${Math.abs(daysUntil)} days overdue` :
+                                                         daysUntil === 0 ? 'Due today' :
+                                                         daysUntil === 1 ? 'Due tomorrow' :
+                                                         `${daysUntil} days left`}
+                                                    </div>
+                                                </div>
+
+                                                {!task.completed && (
+                                                    <>
+                                                        <input
+                                                            id={`file-upload-${task.id}`}
+                                                            type="file"
+                                                            accept="image/*"
+                                                            capture="environment"
+                                                            onChange={(e) => uploadProof(task.id, e)}
+                                                            className="hidden"
+                                                        />
+                                                        <button 
+                                                            onClick={() => triggerFileUpload(task.id)}
+                                                            className="w-full bg-indigo-50 text-indigo-600 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-indigo-100 transition"
+                                                        >
+                                                            <Camera />
+                                                            Upload Proof & Mark Complete
+                                                        </button>
+                                                    </>
+                                                )}
+                                                
+                                                {task.completed && task.proof && (
+                                                    <div className="space-y-2">
+                                                        <div className="bg-green-50 text-green-700 py-2 px-3 rounded-lg text-sm flex items-center justify-between">
+                                                            <div className="flex items-center gap-2">
+                                                                <Check />
+                                                                Proof uploaded successfully
+                                                            </div>
+                                                            <div className="flex gap-2">
+                                                                <button
+                                                                    onClick={() => replaceProof(task.id)}
+                                                                    className="text-green-700 hover:text-green-900"
+                                                                    title="Replace proof"
+                                                                >
+                                                                    <RefreshCw />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => deleteProof(task.id)}
+                                                                    className="text-green-700 hover:text-red-600"
+                                                                    title="Delete proof"
+                                                                >
+                                                                    <Trash2 />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                        {task.proof !== 'uploaded' && (
+                                                            <div className="relative">
+                                                                <img 
+                                                                    src={task.proof} 
+                                                                    alt="Homework proof"
+                                                                    className="w-full h-32 object-cover rounded-lg border border-gray-200 cursor-pointer"
+                                                                    onClick={() => viewImage(task.proof)}
+                                                                />
+                                                                <button
+                                                                    onClick={() => viewImage(task.proof)}
+                                                                    className="absolute top-2 right-2 bg-white bg-opacity-90 p-2 rounded-full shadow-lg hover:bg-opacity-100"
+                                                                >
+                                                                    <Eye />
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </>
+                        )}
+
+                        {activeTab === 'subjects' && (
+                            <>
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="text-xl font-semibold text-gray-800">By Subject</h2>
+                                    <button 
+                                        onClick={() => setShowAddSubject(true)}
+                                        className="bg-indigo-600 text-white p-3 rounded-full shadow-lg hover:bg-indigo-700 transition"
+                                    >
+                                        <Plus />
+                                    </button>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {subjects.map(subject => {
+                                        const subjectTasks = tasks.filter(t => t.subject === subject);
+                                        const completedCount = subjectTasks.filter(t => t.completed).length;
+                                        
+                                        return (
+                                            <div 
+                                                key={subject}
+                                                className="bg-white rounded-2xl p-4 shadow-md relative"
+                                            >
+                                                {subjectTasks.length === 0 && (
+                                                    <button 
+                                                        onClick={() => deleteSubject(subject)}
+                                                        className="absolute top-2 right-2 text-gray-400 hover:text-red-500"
+                                                    >
+                                                        <Trash2 />
+                                                    </button>
+                                                )}
+                                                <div className={`${getSubjectColor(subject)} w-12 h-12 rounded-full flex items-center justify-center mb-3`}>
+                                                    <BookOpen />
+                                                </div>
+                                                <h3 className="font-semibold text-gray-800 mb-1">{subject}</h3>
+                                                <p className="text-sm text-gray-600">
+                                                    {completedCount}/{subjectTasks.length} completed
+                                                </p>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Add Task Modal */}
+                    {showAddTask && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center z-50">
+                            <div className="bg-white w-full max-w-md rounded-t-3xl p-6 animate-slide-up">
+                                <h2 className="text-xl font-bold text-gray-800 mb-4">Add New Task</h2>
+                                
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                                        <select 
+                                            value={newTask.subject}
+                                            onChange={(e) => setNewTask({...newTask, subject: e.target.value})}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                        >
+                                            <option value="">Select subject</option>
+                                            {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Task Title</label>
+                                        <input 
+                                            type="text"
+                                            value={newTask.title}
+                                            onChange={(e) => setNewTask({...newTask, title: e.target.value})}
+                                            placeholder="Enter task description"
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                                        <input 
+                                            type="date"
+                                            value={newTask.dueDate}
+                                            onChange={(e) => setNewTask({...newTask, dueDate: e.target.value})}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                                        <div className="flex gap-2">
+                                            {['low', 'medium', 'high'].map(p => (
+                                                <button
+                                                    key={p}
+                                                    onClick={() => setNewTask({...newTask, priority: p})}
+                                                    className={`flex-1 py-2 rounded-lg capitalize ${
+                                                        newTask.priority === p 
+                                                            ? 'bg-indigo-600 text-white' 
+                                                            : 'bg-gray-100 text-gray-700'
+                                                    }`}
+                                                >
+                                                    {p}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-3 pt-2">
+                                        <button 
+                                            onClick={() => setShowAddTask(false)}
+                                            className="flex-1 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button 
+                                            onClick={addTask}
+                                            className="flex-1 py-3 bg-indigo-600 text-white rounded-lg font-medium"
+                                        >
+                                            Add Task
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Add Subject Modal */}
+                    {showAddSubject && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center z-50">
+                            <div className="bg-white w-full max-w-md rounded-t-3xl p-6 animate-slide-up">
+                                <h2 className="text-xl font-bold text-gray-800 mb-4">Add New Subject</h2>
+                                
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Subject Name</label>
+                                        <input 
+                                            type="text"
+                                            value={newSubject}
+                                            onChange={(e) => setNewSubject(e.target.value)}
+                                            placeholder="e.g., Chemistry, Geography"
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                        />
+                                    </div>
+
+                                    <div className="flex gap-3 pt-2">
+                                        <button 
+                                            onClick={() => {
+                                                setShowAddSubject(false);
+                                                setNewSubject('');
+                                            }}
+                                            className="flex-1 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button 
+                                            onClick={addSubject}
+                                            className="flex-1 py-3 bg-indigo-600 text-white rounded-lg font-medium"
+                                        >
+                                            Add Subject
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Image View Modal */}
+                    {showImageModal && selectedImage && (
+                        <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4">
+                            <div className="relative w-full max-w-4xl">
+                                <button
+                                    onClick={() => {
+                                        setShowImageModal(false);
+                                        setSelectedImage(null);
+                                    }}
+                                    className="absolute -top-12 right-0 text-white bg-white bg-opacity-20 p-3 rounded-full hover:bg-opacity-30"
+                                >
+                                    <X />
+                                </button>
+                                <img 
+                                    src={selectedImage} 
+                                    alt="Full size proof"
+                                    className="w-full h-auto max-h-[80vh] object-contain rounded-lg"
+                                />
+                                <div className="text-white text-center mt-4 text-sm">
+                                    Click anywhere or press X to close
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Bottom Navigation */}
+                    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-4 max-w-md mx-auto">
+                        <div className="flex justify-around">
+                            <button 
+                                onClick={() => setActiveTab('home')}
+                                className={`flex flex-col items-center gap-1 ${
+                                    activeTab === 'home' ? 'text-indigo-600' : 'text-gray-400'
+                                }`}
+                            >
+                                <Calendar />
+                                <span className="text-xs font-medium">Tasks</span>
+                            </button>
+                            <button 
+                                onClick={() => setActiveTab('subjects')}
+                                className={`flex flex-col items-center gap-1 ${
+                                    activeTab === 'subjects' ? 'text-indigo-600' : 'text-gray-400'
+                                }`}
+                            >
+                                <BookOpen />
+                                <span className="text-xs font-medium">Subjects</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<HomeworkTrackerApp />, document.getElementById('root'));
+    </script>
+
+    <script>
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed'));
+            });
+        }
+    </script>
+</body>
+</html>
